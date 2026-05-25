@@ -1,107 +1,93 @@
 # Lab_15_MobileSecurity
-# LAB-15-Analyse-Dynamique-Android-Inspection-TLS-HTTPS-et-Gestion-du-SSL-Pinning
-## Étape 1 — Installer Frida (PC) et démarrer frida-server (Android)
-![Step 1](screenshots/lab15_01.png)
-![Step 2](screenshots/lab15_02.png)
-![Step 3](screenshots/lab15_03.png)
-![Step 4](screenshots/lab15_04.png)
-![Step 5](screenshots/lab15_05.png)
-![Step 6](screenshots/lab15_06.png)
-![Step 7](screenshots/lab15_07.png)
-![Step 8](screenshots/lab15_08.png)
-## Étape 3 — Lancer l’app cible sous Frida
-![Step 9](screenshots/lab15_09.png)
+# LAB‑15 – Analyse Dynamique Android – Inspection TLS/HTTPS & Gestion du SSL Pinning
 
-## Étape 4 — Script « universel » Java pour bypass SSL pinning
-![Step 10](screenshots/lab15_10.png)
-## Étape 5 — Variantes et cibles spécifiques
+## Étape 1 – Installer Frida (PC) et démarrer frida‑server (Android)
+### 1.1 Installer Frida côté PC
+```powershell
+python -m pip install --upgrade frida frida-tools
+```
+### Vérification
+```powershell
+frida --version
+python -c "import frida; print(frida.__version__)"
+```
+![Vérification de l'environnement](../Lab14/screenshots/1_frida_version.png)
 
-![Step 11](screenshots/lab15_11.png)
-![Step 12](screenshots/lab15_12.png)
+### 1.2 Préparer ADB et l’appareil
+Sur l’appareil : Options développeur → activer « Débogage USB ». Connectez‑le en USB et acceptez l’empreinte.
+```powershell
+adb devices
+```
+![Connexion ADB](../Lab14/screenshots/2_adb_devices.png)
 
-Après l’analyse dynamique de l’application :contentReference[oaicite:0]{index=0} à l’aide de Frida, une phase de reconnaissance a été réalisée afin d’identifier les mécanismes de protection SSL utilisés. Cette étape est essentielle pour adapter la technique de contournement en fonction de l’implémentation réelle du pinning.
+### 1.3 Déployer et lancer frida‑server
+```powershell
+adb push frida-server /data/local/tmp/
+adb shell chmod 755 /data/local/tmp/frida-server
+adb shell "/data/local/tmp/frida-server -l 0.0.0.0"
+frida-ps -Uai
+```
+![Démarrage de frida‑server](../Lab14/screenshots/3_frida_server.png)
 
----
+## Étape 2 – Mettre en place le proxy et le certificat CA
+### 2.1 Lancer le proxy sur le PC
+- **Burp** : Proxy → Intercept ON/OFF (port ex 127.0.0.1:8080)
+- **mitmproxy** : `mitmproxy -p 8080`
 
-##  5.1 Identification des bibliothèques utilisées
+### 2.2 Installer la CA proxy sur l’appareil
+Ouvrez `http://burp` ou `http://mitm.it` depuis le téléphone, téléchargez le certificat et installez‑le comme « certificat CA utilisateur ».
 
-L’exécution d’un script de scan des classes Java chargées a permis de détecter plusieurs composants liés à la sécurité réseau :
+### 2.3 Rediriger le trafic de l’appareil vers le proxy
+```powershell
+adb reverse tcp:8080 tcp:8080
+```
+Vérifiez en naviguant vers un site HTTPS ; le proxy doit voir les requêtes.
 
-- Présence de **OkHttp (`com.android.okhttp`)**
-- Présence de **CertificatePinner**
-- Présence de **X509TrustManager (`javax.net.ssl`)**
-- Présence de **TrustManagerImpl (Conscrypt)**
+## Étape 3 – Lancer l’application cible sous Frida
+Identifiez le package :
+```powershell
+frida-ps -Uai | Select-String -Pattern okhttp,webview,ssl,https
+```
+Spawning (injection tôt) :
+```powershell
+frida -U -f <package_name> -l sslpin_bypass_universal.js --no-pause
+```
+Attache (si l’app est déjà lancée) :
+```powershell
+frida -U -n "<NomDuProcessus>" -l sslpin_bypass_universal.js
+```
 
-Ces résultats montrent que l’application utilise une **architecture hybride de validation SSL**, combinant plusieurs mécanismes de sécurité.
+## Étape 4 – Script « universel » Java pour bypass SSL pinning
+```javascript
+// sslpin_bypass_universal.js – contenu complet fourni dans le cours
+```
+![Universal SSL pinning bypass installé](../Lab14/screenshots/4_frida_bypass.png)
 
----
+## Étape 5 – Variantes et cibles spécifiques
+- **OkHttp only** : patch `CertificatePinner.check()`
+- **Conscrypt only** : patch `TrustManagerImpl` methods
+- **WebView only** : patch `WebViewClient.onReceivedSslError`
 
-##  5.2 Classification du mécanisme de protection
+## Étape 6 – Cas avancé : pinning natif (BoringSSL / OpenSSL)
+Si aucune requête n’apparaît dans le proxy :
+1. Découvrir les symboles natifs :
+```powershell
+frida-trace -U -i SSL_* -i X509_* <package_name>
+```
+2. Hook minimal :
+```javascript
+// sslpin_bypass_native.js – hook SSL_get_verify_result, etc.
+```
+Lancer les deux scripts :
+```powershell
+frida -U -f <package_name> -l sslpin_bypass_universal.js -l sslpin_bypass_native.js --no-pause
+```
 
-D’après les résultats obtenus, le système de sécurité appartient à la catégorie :
-
->  **Double SSL pinning (OkHttp + TrustManager)**
-
-Cela signifie que la validation TLS repose sur plusieurs couches :
-
-- **Couche 1 : OkHttp CertificatePinner**  
-  Validation des certificats serveur au niveau réseau HTTP.
-  
-- **Couche 2 : TrustManager Android (Conscrypt)**  
-  Validation des certificats au niveau système.
-
----
-
-##  5.3 Stratégie de contournement adaptée
-
-Contrairement aux applications utilisant une seule méthode de pinning, cette application nécessite une approche **ciblée et modulaire** :
-
-###  Étape 1 — Bypass OkHttp
-Interception de la méthode `CertificatePinner.check()` afin de neutraliser la vérification des certificats SSL.
-
-###  Étape 2 — Bypass TrustManager
-Surcharge des méthodes suivantes :
-
-- `checkServerTrusted`
-- `checkClientTrusted`
-
-afin d’autoriser tous les certificats sans validation.
-
----
-
-##  5.4 Importance de l’approche ciblée
-
-L’utilisation d’un script universel (bypass global) peut entraîner :
-
-- Crash de l’application
-- Détection par mécanismes anti-instrumentation
-- Appel de fonctions natives de protection (ex: `libfoo.so`)
-- Fermeture volontaire du processus (anti-tampering)
-
-Ainsi, une approche adaptée au résultat du scan est indispensable pour garantir la stabilité de l’application.
-
----
-
-##  5.5 Conclusion de l’étape
-
-Cette étape montre que la réussite du bypass SSL ne dépend pas uniquement de l’utilisation de Frida, mais principalement de :
-
-- L’identification correcte des bibliothèques utilisées
-- L’adaptation du hook selon l’architecture de l’application
-- L’évitement des hooks globaux trop intrusifs
-## ## Étape 6 — Cas avancé : Pinning natif (BoringSSL / OpenSSL)
-
-Dans certains cas, le contournement du SSL pinning au niveau Java n’est pas suffisant.  
-Si aucune requête n’apparaît dans le proxy (Burp Suite, mitmproxy, etc.), cela signifie que l’application effectue probablement la vérification SSL au niveau natif via des bibliothèques comme **BoringSSL** ou **OpenSSL**.
-
-Dans ce cas, l’approche consiste à analyser et intercepter les fonctions natives responsables de la validation TLS, puis forcer un résultat valide.
-
-### 6.1 Découverte des symboles natifs
-
-La première étape consiste à identifier les fonctions TLS utilisées par l’application :
-![Native symbols](screenshots/lab15_13.png)
-
-
-La première étape consiste à identifier les fonctions TLS utilisées par l’application :
-![](https://github.com/user-attachments/assets/654c23fa-ba17-4825-9ffe-806d1b1e360a)
-
+## Étape 7 – Validation et livrables
+- Vérifiez dans le proxy que les requêtes HTTPS de l’app sont visibles en clair.
+- Capturez les logs Frida contenant les messages `[+] SSL bypass:`.
+- Fournissez :
+  - Capture de `frida --version` & `frida-ps -Uai`
+  - Scripts utilisés (`sslpin_bypass_universal.js`, `sslpin_bypass_native.js`)
+  - Capture du proxy montrant une requête HTTPS
+  - Journal Frida avec au moins une ligne `SSL bypass`.
