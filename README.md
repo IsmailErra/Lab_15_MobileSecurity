@@ -11,14 +11,14 @@ python -m pip install --upgrade frida frida-tools
 frida --version
 python -c "import frida; print(frida.__version__)"
 ```
-![Vérification de l'environnement](../Lab14/screenshots/1_frida_version.png)
+![Vérification de l'environnement](screenshots/1_frida_version.png)
 
 ### 1.2 Préparer ADB et l’appareil
 Sur l’appareil : Options développeur → activer « Débogage USB ». Connectez‑le en USB et acceptez l’empreinte.
 ```powershell
 adb devices
 ```
-![Connexion ADB](../Lab14/screenshots/2_adb_devices.png)
+![Connexion ADB](screenshots/2_adb_devices.png)
 
 ### 1.3 Déployer et lancer frida‑server
 ```powershell
@@ -27,7 +27,7 @@ adb shell chmod 755 /data/local/tmp/frida-server
 adb shell "/data/local/tmp/frida-server -l 0.0.0.0"
 frida-ps -Uai
 ```
-![Démarrage de frida‑server](../Lab14/screenshots/3_frida_server.png)
+![Démarrage de frida‑server](screenshots/3_frida_server.png)
 
 ## Étape 2 – Mettre en place le proxy et le certificat CA
 ### 2.1 Lancer le proxy sur le PC
@@ -61,7 +61,7 @@ frida -U -n "<NomDuProcessus>" -l sslpin_bypass_universal.js
 ```javascript
 // sslpin_bypass_universal.js – contenu complet fourni dans le cours
 ```
-![Universal SSL pinning bypass installé](../Lab14/screenshots/4_frida_bypass.png)
+![Universal SSL pinning bypass installé](screenshots/4_frida_bypass.png)
 
 ## Étape 5 – Variantes et cibles spécifiques
 - **OkHttp only** : patch `CertificatePinner.check()`
