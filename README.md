@@ -1,23 +1,23 @@
 # Lab_15_MobileSecurity
 # LAB-15-Analyse-Dynamique-Android-Inspection-TLS-HTTPS-et-Gestion-du-SSL-Pinning
 ## Étape 1 — Installer Frida (PC) et démarrer frida-server (Android)
-![](https://github.com/user-attachments/assets/047e7016-2c28-4cce-995b-5ce8860024bc)
-![](https://github.com/user-attachments/assets/7c230d07-e269-43ef-84dd-5ce5112472b4)
-![](https://github.com/user-attachments/assets/a67a9857-ef39-4c57-ad5b-8e0e62390f3b)
-![](https://github.com/user-attachments/assets/60ce9960-4666-49c8-8390-4440e81a0f1e)
-![](https://github.com/user-attachments/assets/e74acdd8-be0a-4d0f-9312-85fbf5dc30d8)
-![](https://github.com/user-attachments/assets/e7edca9a-ccb3-48a1-b221-f58db4ee763d)
-![](https://github.com/user-attachments/assets/23760fff-ec33-4857-886e-026d5cf2bc77)
-![](https://github.com/user-attachments/assets/3d08cd6c-6583-44b1-bf5d-90282d681ccb)
+![Step 1](screenshots/lab15_01.png)
+![Step 2](screenshots/lab15_02.png)
+![Step 3](screenshots/lab15_03.png)
+![Step 4](screenshots/lab15_04.png)
+![Step 5](screenshots/lab15_05.png)
+![Step 6](screenshots/lab15_06.png)
+![Step 7](screenshots/lab15_07.png)
+![Step 8](screenshots/lab15_08.png)
 ## Étape 3 — Lancer l’app cible sous Frida
-![](https://github.com/user-attachments/assets/a9934350-cce2-4b8d-a512-d166f2528b76)
+![Step 9](screenshots/lab15_09.png)
 
 ## Étape 4 — Script « universel » Java pour bypass SSL pinning
-![](https://github.com/user-attachments/assets/5887a2bb-f8ff-488e-ae4c-6e1b54856292)
+![Step 10](screenshots/lab15_10.png)
 ## Étape 5 — Variantes et cibles spécifiques
 
-![](https://github.com/user-attachments/assets/5ba24d3c-df83-4269-9fea-4712e195ad15)
-![](https://github.com/user-attachments/assets/b98ee819-9881-4715-b055-d43bf6a2c9ef)
+![Step 11](screenshots/lab15_11.png)
+![Step 12](screenshots/lab15_12.png)
 
 Après l’analyse dynamique de l’application :contentReference[oaicite:0]{index=0} à l’aide de Frida, une phase de reconnaissance a été réalisée afin d’identifier les mécanismes de protection SSL utilisés. Cette étape est essentielle pour adapter la technique de contournement en fonction de l’implémentation réelle du pinning.
 
@@ -97,6 +97,10 @@ Si aucune requête n’apparaît dans le proxy (Burp Suite, mitmproxy, etc.), ce
 Dans ce cas, l’approche consiste à analyser et intercepter les fonctions natives responsables de la validation TLS, puis forcer un résultat valide.
 
 ### 6.1 Découverte des symboles natifs
+
+La première étape consiste à identifier les fonctions TLS utilisées par l’application :
+![Native symbols](screenshots/lab15_13.png)
+
 
 La première étape consiste à identifier les fonctions TLS utilisées par l’application :
 ![](https://github.com/user-attachments/assets/654c23fa-ba17-4825-9ffe-806d1b1e360a)
